@@ -20,7 +20,7 @@ npm install @sovgut/datagrid @sovgut/datagrid-react-router
 
 ```tsx
 import { DataGrid, type DataGridColumn } from '@sovgut/datagrid';
-import { useDataGridRouter } from '@sovgut/datagrid-react-router';
+import { useSharedDataGrid } from '@sovgut/datagrid-react-router';
 import { useSearchParams } from 'react-router'
 
 const columns: DataGridColumn[] = [...]
@@ -28,7 +28,7 @@ const columns: DataGridColumn[] = [...]
 function UsersTable() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [dataGrid, dispatch] = useSharedDataGrid(
-    [searchParams, setSearchParams], 
+    [searchParams, setSearchParams],
     columns
   );
 
