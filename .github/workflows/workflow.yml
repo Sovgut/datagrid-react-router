@@ -1,0 +1,45 @@
+name: Workflow
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "package.json"
+
+jobs:
+  check-version:
+    name: Package
+    uses: Sovgut/state/.github/workflows/check-version.yml@main
+
+  build:
+    name: Package
+    needs:
+      - check-version
+    if: needs.check-version.outputs.is-changed == 'true'
+    uses: Sovgut/state/.github/workflows/build.yml@main
+    with:
+      node-version: "22.x"
+      package-version: ${{ needs.check-version.outputs.version }}
+
+  deploy-npm:
+    name: Package
+    needs:
+      - check-version
+      - build
+    uses: Sovgut/state/.github/workflows/deploy-npm.yml@main
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+    with:
+      node-version: "22.x"
+      package-version: ${{ needs.check-version.outputs.version }}
+
+  deploy-github:
+    name: Package
+    needs:
+      - check-version
+      - build
+    uses: Sovgut/state/.github/workflows/deploy-github.yml@main
+    with:
+      node-version: "22.x"
+      package-version: ${{ needs.check-version.outputs.version }}

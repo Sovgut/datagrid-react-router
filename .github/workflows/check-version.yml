@@ -1,0 +1,53 @@
+on:
+  workflow_call:
+    outputs:
+      version:
+        description: "Package version"
+        value: ${{ jobs.version.outputs.version }}
+      is-changed:
+        description: "Package version state"
+        value: ${{ jobs.version.outputs.is-changed }}
+
+jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+
+    outputs:
+      is-changed: ${{ steps.check-version.outputs.is-changed }}
+      version: ${{ steps.get-current-version.outputs.version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check version
+        id: get-current-version
+        run: |
+          CURR_VERSION=$(grep '"version":' package.json | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "Current version in package.json: $CURR_VERSION"
+          echo "version=$CURR_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Get previous version from package.json
+        id: get-previous-version
+        run: |
+          PREV_VERSION=$(git show HEAD~1:package.json | grep '"version":' | sed -E 's/.*"([^"]+)".*/\1/' || echo "none")
+          echo "Previous version in package.json: $PREV_VERSION"
+          echo "prev-version=$PREV_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check version increment
+        id: check-version
+        run: |
+          echo "Previous version: ${{ steps.get-previous-version.outputs.prev-version }}"
+          echo "Current version: ${{ steps.get-current-version.outputs.version }}"
+          if [ "$PREV_VERSION" = "none" ] || [ "${{ steps.get-current-version.outputs.version }}" != "${{ steps.get-previous-version.outputs.prev-version }}" ]; then
+            echo "is-changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "is-changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Output package version state
+        run: |
+          echo "Version changed: ${{ steps.check-version.outputs.is-changed }}"
