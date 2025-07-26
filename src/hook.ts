@@ -69,7 +69,13 @@ export function useSharedDataGrid<TData extends DataGridRow>(
         }
 
         for (const key of receivedFilterKeys) {
-          state.set(key, filter[key].toString());
+          if (Array.isArray(filter[key])) {
+            for (const value of filter[key]) {
+              state.append(key, value.toString());
+            }
+          } else {
+            state.set(key, filter[key].toString());
+          }
         }
 
         return state;
