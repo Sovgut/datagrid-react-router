@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { type URLSearchParamsInit, useSearchParams } from "react-router-dom";
+import { type SetURLSearchParams } from "react-router-dom";
 import {
   type DataGridColumn,
   type DataGridReducer,
@@ -16,10 +16,10 @@ import { isNullish } from "utility-types";
 import type { ExpectedAny } from "./types.ts";
 
 export function useSharedDataGrid<TData extends DataGridRow>(
-  columns: DataGridColumn<TData>[],
-  initProps?: URLSearchParamsInit
+  context: [URLSearchParams, SetURLSearchParams],
+  columns: DataGridColumn<TData>[]
 ): DataGridReducer {
-  const [searchParams, setSearchParams] = useSearchParams(initProps);
+  const [searchParams, setSearchParams] = context;
   const [selected, setSelected] = useState<DataGridState["selected"]>(DATAGRID_DEFAULT_SELECTED);
 
   const setPagination = useCallback(
