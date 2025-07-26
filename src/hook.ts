@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { type URLSearchParamsInit, useSearchParams } from "react-router";
+import { type URLSearchParamsInit, useSearchParams } from "react-router-dom";
 import {
   type DataGridColumn,
   type DataGridReducer,
