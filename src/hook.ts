@@ -16,10 +16,9 @@ import { isNullish } from "utility-types";
 import type { ExpectedAny } from "./types.ts";
 
 export function useSharedDataGrid<TData extends DataGridRow>(
-  context: [URLSearchParams, SetURLSearchParams],
+  [searchParams, setSearchParams]: [URLSearchParams, SetURLSearchParams],
   columns: DataGridColumn<TData>[]
 ): DataGridReducer {
-  const [searchParams, setSearchParams] = context;
   const [selected, setSelected] = useState<DataGridState["selected"]>(DATAGRID_DEFAULT_SELECTED);
 
   const setPagination = useCallback(
