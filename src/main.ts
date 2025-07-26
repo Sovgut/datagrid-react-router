@@ -1,1 +1,1 @@
-export { useSharedDataGrid } from "./hooks/useSharedDataGrid.ts";
+export { useSharedDataGrid } from "./hook.ts";

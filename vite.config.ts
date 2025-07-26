@@ -4,8 +4,11 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import dts from "vite-plugin-dts";
 import { resolve } from "node:path";
+import packageJson from "./package.json";
 
 const __dirname = new URL(".", import.meta.url).pathname;
+
+const peerDependencies = Object.keys(packageJson.peerDependencies || {});
 
 export default defineConfig({
   plugins: [
@@ -18,14 +21,16 @@ export default defineConfig({
   build: {
     lib: {
       entry: resolve(__dirname, "src/main.ts"),
+      name: "DataGrid",
+      fileName: "datagrid",
       formats: ["es"],
     },
     rollupOptions: {
-      external: ["react", "react-dom", "react/jsx-runtime"],
+      external: [...peerDependencies, "react/jsx-runtime"],
       output: {
         globals: {
           react: "React",
-          "react-dom": "React-dom",
+          "react-dom": "ReactDOM",
           "react/jsx-runtime": "react/jsx-runtime",
         },
       },
