@@ -36,8 +36,6 @@ export function useSharedDataGrid<TData extends DataGridRow>(
   const setSorting = useCallback(
     (sort: DataGridState["sort"], order: DataGridState["order"]) => {
       setSearchParams((state) => {
-        console.log("arguments", { sort, order });
-        console.log("before update", Array.from(state.entries()));
         if (isNullish(sort)) {
           state.delete("sort");
         } else {
@@ -49,8 +47,6 @@ export function useSharedDataGrid<TData extends DataGridRow>(
         } else {
           state.set("order", order?.toString() ?? "");
         }
-
-        console.log("after update", Array.from(state.entries()));
 
         return state;
       });
