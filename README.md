@@ -5,10 +5,10 @@ A simple adapter to synchronize <code>@sovgut/datagrid</code> state with URL sea
 </p>
 
 <p align="center">
-<img src="[https://img.shields.io/npm/v/@sovgut/datagrid-react-router](https://www.google.com/search?q=https://img.shields.io/npm/v/%40sovgut/datagrid-react-router)" alt="npm version" />
-<img src="[https://img.shields.io/npm/dm/@sovgut/datagrid-react-router](https://www.google.com/search?q=https://img.shields.io/npm/dm/%40sovgut/datagrid-react-router)" alt="npm downloads" />
-<img src="[https://img.shields.io/github/license/sovgut/datagrid-react-router](https://www.google.com/search?q=https://img.shields.io/github/license/sovgut/datagrid-react-router)" alt="license" >
-<img src="[https://img.shields.io/badge/TypeScript-Ready-blue](https://img.shields.io/badge/TypeScript-Ready-blue)" alt="TypeScript" />
+  <img src="https://img.shields.io/npm/v/@sovgut/datagrid-react-router" alt="npm version" />
+  <img src="https://img.shields.io/npm/dm/@sovgut/datagrid-react-router" alt="npm downloads" />
+  <img src="https://img.shields.io/github/license/sovgut/datagrid-react-router" alt="license" />
+  <img src="https://img.shields.io/badge/TypeScript-Ready-blue" alt="TypeScript" />
 </p>
 
 ## Description
