@@ -36,17 +36,21 @@ export function useSharedDataGrid<TData extends DataGridRow>(
   const setSorting = useCallback(
     (sort: DataGridState["sort"], order: DataGridState["order"]) => {
       setSearchParams((state) => {
+        console.log("arguments", { sort, order });
+        console.log("before update", Array.from(state.entries()));
         if (isNullish(sort)) {
           state.delete("sort");
         } else {
-          state.set("sort", sort.toString());
+          state.set("sort", sort?.toString() ?? "");
         }
 
         if (isNullish(order)) {
           state.delete("order");
         } else {
-          state.set("order", order.toString());
+          state.set("order", order?.toString() ?? "");
         }
+
+        console.log("after update", Array.from(state.entries()));
 
         return state;
       });
@@ -62,9 +66,7 @@ export function useSharedDataGrid<TData extends DataGridRow>(
         const receivedFilterKeys = Object.keys(filter);
 
         for (const key of currentFilterKeys) {
-          if (!receivedFilterKeys.includes(key)) {
-            state.delete(key);
-          }
+          state.delete(key);
         }
 
         for (const key of receivedFilterKeys) {
@@ -83,42 +85,79 @@ export function useSharedDataGrid<TData extends DataGridRow>(
     [setSearchParams]
   );
 
-  const state = useMemo<DataGridState>(() => {
-    return {
-      page: searchParams.has("page") ? Number(searchParams.get("page")) : DATAGRID_DEFAULT_PAGE,
-      limit: searchParams.has("limit") ? Number(searchParams.get("limit")) : DATAGRID_DEFAULT_LIMIT,
-      sort: searchParams.get("sort") || DATAGRID_DEFAULT_SORT,
-      order: (searchParams.get("order") as DataGridState["order"]) || DATAGRID_DEFAULT_ORDER,
-      filter: columns.reduce(
-        (acc, column) => {
-          const key = column.key as string;
+  const setState = useCallback(
+    (state: DataGridState) => {
+      setSelected(state.selected ?? DATAGRID_DEFAULT_SELECTED);
+      setSearchParams((search) => {
+        search.set("page", state.page.toString());
+        search.set("limit", state.limit.toString());
 
-          if (searchParams.has(key)) {
-            if (column.multiple) {
-              acc[key] = searchParams.getAll(key) as ExpectedAny;
+        if (isNullish(state.sort)) {
+          search.delete("sort");
+        } else {
+          search.set("sort", state.sort?.toString());
+        }
+
+        if (isNullish(state.order)) {
+          search.delete("order");
+        } else {
+          search.set("order", state.order?.toString());
+        }
+
+        const currentStateKeys = Array.from(search.keys());
+        const currentFilterKeys = currentStateKeys.filter((key) => !["page", "limit", "sort", "order"].includes(key));
+        const receivedFilterKeys = Object.keys(state.filter);
+
+        for (const key of currentFilterKeys) {
+          search.delete(key);
+        }
+
+        for (const key of receivedFilterKeys) {
+          if (!isNullish(state.filter[key])) {
+            if (Array.isArray(state.filter[key])) {
+              for (const value of state.filter[key]) {
+                if (!isNullish(value)) {
+                  search.append(key, value.toString());
+                }
+              }
             } else {
-              acc[key] = searchParams.get(key) as ExpectedAny;
+              search.set(key, state.filter[key].toString());
             }
           }
+        }
 
-          return acc;
-        },
-        DATAGRID_DEFAULT_FILTER as Record<string, ExpectedAny>
-      ),
-      selected: selected,
-    };
-  }, [columns, searchParams, selected]);
+        return search;
+      });
+    },
+    [setSearchParams]
+  );
+
+  const memoizedFilter = useMemo(() => {
+    return columns.reduce((acc, column) => {
+      const key = column.key as string;
+
+      if (searchParams.has(key)) {
+        return {
+          ...acc,
+          [key]: column.multiple ? (searchParams.getAll(key) as ExpectedAny) : (searchParams.get(key) as ExpectedAny),
+        };
+      }
+
+      return acc;
+    }, DATAGRID_DEFAULT_FILTER);
+  }, [columns, searchParams]);
 
   return {
-    page: state.page,
-    limit: state.limit,
-    sort: state.sort,
-    order: state.order,
-    filter: state.filter,
-    selected: state.selected,
+    selected,
+    page: searchParams.has("page") ? Number(searchParams.get("page")) : DATAGRID_DEFAULT_PAGE,
+    limit: searchParams.has("limit") ? Number(searchParams.get("limit")) : DATAGRID_DEFAULT_LIMIT,
+    sort: searchParams.get("sort") || DATAGRID_DEFAULT_SORT,
+    order: (searchParams.get("order") as DataGridState["order"]) || DATAGRID_DEFAULT_ORDER,
+    filter: memoizedFilter,
     setPagination,
     setSorting,
     setFilter,
     setSelected,
+    setState,
   };
 }

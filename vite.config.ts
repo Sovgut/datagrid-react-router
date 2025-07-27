@@ -18,6 +18,7 @@ export default defineConfig({
       tsconfigPath: "./tsconfig.app.json",
     }),
   ],
+
   build: {
     lib: {
       entry: resolve(__dirname, "src/main.ts"),
@@ -26,6 +27,7 @@ export default defineConfig({
       formats: ["es"],
     },
     rollupOptions: {
+      logLevel: "debug",
       external: [...peerDependencies, "react/jsx-runtime"],
       output: {
         globals: {
