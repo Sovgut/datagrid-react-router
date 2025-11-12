@@ -19,7 +19,7 @@ jobs:
     if: needs.check-version.outputs.is-changed == 'true'
     uses: Sovgut/datagrid-react-router/.github/workflows/build.yml@main
     with:
-      node-version: "22.x"
+      node-version: "25.x"
       package-version: ${{ needs.check-version.outputs.version }}
 
   deploy-npm:
@@ -32,7 +32,7 @@ jobs:
       contents: read
     uses: Sovgut/datagrid-react-router/.github/workflows/deploy-npm.yml@main
     with:
-      node-version: "22.x"
+      node-version: "25.x"
       package-version: ${{ needs.check-version.outputs.version }}
 
   deploy-github:
@@ -40,10 +40,7 @@ jobs:
     needs:
       - check-version
       - build
-    permissions:
-      packages: write
-      contents: read
     uses: Sovgut/datagrid-react-router/.github/workflows/deploy-github.yml@main
     with:
-      node-version: "22.x"
+      node-version: "25.x"
       package-version: ${{ needs.check-version.outputs.version }}
