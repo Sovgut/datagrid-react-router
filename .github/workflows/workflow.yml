@@ -28,8 +28,6 @@ jobs:
       - check-version
       - build
     uses: Sovgut/state/.github/workflows/deploy-npm.yml@main
-    secrets:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     with:
       node-version: "22.x"
       package-version: ${{ needs.check-version.outputs.version }}
