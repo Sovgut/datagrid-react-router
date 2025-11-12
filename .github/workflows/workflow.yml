@@ -27,6 +27,9 @@ jobs:
     needs:
       - check-version
       - build
+    permissions:
+      id-token: write
+      contents: read
     uses: Sovgut/datagrid-react-router/.github/workflows/deploy-npm.yml@main
     with:
       node-version: "22.x"
@@ -37,6 +40,9 @@ jobs:
     needs:
       - check-version
       - build
+    permissions:
+      packages: write
+      contents: read
     uses: Sovgut/datagrid-react-router/.github/workflows/deploy-github.yml@main
     with:
       node-version: "22.x"
