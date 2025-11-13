@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { type SetURLSearchParams } from "react-router-dom";
 import {
   type DataGridColumn,
@@ -19,8 +19,6 @@ export function useSharedDataGrid<TData extends DataGridRow>(
   [searchParams, setSearchParams]: [URLSearchParams, SetURLSearchParams],
   columns: DataGridColumn<TData>[]
 ): DataGridReducer {
-  const [selected, setSelected] = useState<DataGridState["selected"]>(DATAGRID_DEFAULT_SELECTED);
-
   const setPagination = useCallback(
     (page: DataGridState["page"], limit: DataGridState["limit"]) => {
       setSearchParams((state) => {
@@ -58,7 +56,9 @@ export function useSharedDataGrid<TData extends DataGridRow>(
     (filter: DataGridState["filter"]) => {
       setSearchParams((state) => {
         const currentStateKeys = Array.from(state.keys());
-        const currentFilterKeys = currentStateKeys.filter((key) => !["page", "limit", "sort", "order"].includes(key));
+        const currentFilterKeys = currentStateKeys.filter(
+          (key) => !["page", "limit", "sort", "order", "selected"].includes(key)
+        );
         const receivedFilterKeys = Object.keys(filter);
 
         for (const key of currentFilterKeys) {
@@ -81,9 +81,24 @@ export function useSharedDataGrid<TData extends DataGridRow>(
     [setSearchParams]
   );
 
+  const setSelected = useCallback(
+    (selected: DataGridState["selected"]) => {
+      setSearchParams((state) => {
+        state.delete("selected");
+
+        if (selected && selected.length > 0) {
+          for (const value of selected) {
+            state.append("selected", value.toString());
+          }
+        }
+        return state;
+      });
+    },
+    [setSearchParams]
+  );
+
   const setState = useCallback(
     (state: DataGridState) => {
-      setSelected(state.selected ?? DATAGRID_DEFAULT_SELECTED);
       setSearchParams((search) => {
         search.set("page", state.page.toString());
         search.set("limit", state.limit.toString());
@@ -101,7 +116,9 @@ export function useSharedDataGrid<TData extends DataGridRow>(
         }
 
         const currentStateKeys = Array.from(search.keys());
-        const currentFilterKeys = currentStateKeys.filter((key) => !["page", "limit", "sort", "order"].includes(key));
+        const currentFilterKeys = currentStateKeys.filter(
+          (key) => !["page", "limit", "sort", "order", "selected"].includes(key)
+        );
         const receivedFilterKeys = Object.keys(state.filter);
 
         for (const key of currentFilterKeys) {
@@ -118,6 +135,15 @@ export function useSharedDataGrid<TData extends DataGridRow>(
               }
             } else {
               search.set(key, state.filter[key].toString());
+            }
+          }
+        }
+
+        search.delete("selected");
+        if (state.selected && state.selected.length > 0) {
+          for (const value of state.selected) {
+            if (!isNullish(value)) {
+              search.append("selected", value.toString());
             }
           }
         }
@@ -142,6 +168,8 @@ export function useSharedDataGrid<TData extends DataGridRow>(
       return acc;
     }, DATAGRID_DEFAULT_FILTER);
   }, [columns, searchParams]);
+
+  const selected = searchParams.getAll("selected") ?? DATAGRID_DEFAULT_SELECTED;
 
   return {
     selected,
