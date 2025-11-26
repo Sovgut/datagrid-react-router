@@ -25,7 +25,7 @@
     "react-dom": "^19.1.0",
     "utility-types": "^3.11.0",
     "react-router-dom": "^7.7.1",
-    "@sovgut/datagrid": "4.4.6"
+    "@sovgut/datagrid": "4.4.7"
   },
   "devDependencies": {
     "@eslint/js": "^9.31.0",
