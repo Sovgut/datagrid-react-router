@@ -1,3 +1,5 @@
+// github.com/sovgut/datagrid-react-router
+// hook.ts
 import { useCallback, useMemo } from "react";
 import { type SetURLSearchParams } from "react-router-dom";
 import {
@@ -14,6 +16,29 @@ import {
 } from "@sovgut/datagrid";
 import { isNullish } from "utility-types";
 import type { ExpectedAny } from "./types.ts";
+
+/**
+ * Helper to deep copy objects to avoid mutation issues during state derivation.
+ * Simple implementation to avoid external dependencies if not available.
+ */
+function deepCopy<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj));
+}
+
+/**
+ * Calculates the final state by applying any deriveState logic defined in columns.
+ */
+function calculateDerivedState<TData>(initialState: DataGridState, columns: DataGridColumn<TData>[]): DataGridState {
+  let currentState = deepCopy(initialState);
+
+  for (const column of columns) {
+    if (typeof column.filterConfig?.deriveState === "function") {
+      currentState = column.filterConfig.deriveState(currentState);
+    }
+  }
+
+  return currentState;
+}
 
 export function useSharedDataGrid<TData extends DataGridRow>(
   [searchParams, setSearchParams]: [URLSearchParams, SetURLSearchParams],
@@ -169,15 +194,34 @@ export function useSharedDataGrid<TData extends DataGridRow>(
     }, DATAGRID_DEFAULT_FILTER);
   }, [columns, searchParams]);
 
-  const selected = searchParams.getAll("selected") ?? DATAGRID_DEFAULT_SELECTED;
+  /**
+   * We construct the "raw" state based solely on URL parameters.
+   */
+  const rawState = useMemo(() => {
+    const selected = searchParams.getAll("selected") ?? DATAGRID_DEFAULT_SELECTED;
+
+    return {
+      selected,
+      page: searchParams.has("page") ? Number(searchParams.get("page")) : DATAGRID_DEFAULT_PAGE,
+      limit: searchParams.has("limit") ? Number(searchParams.get("limit")) : DATAGRID_DEFAULT_LIMIT,
+      sort: searchParams.get("sort") || DATAGRID_DEFAULT_SORT,
+      order: (searchParams.get("order") as DataGridState["order"]) || DATAGRID_DEFAULT_ORDER,
+      filter: memoizedFilter,
+    };
+  }, [memoizedFilter, searchParams]);
+
+  /**
+   * We apply the `deriveState` logic immediately here.
+   * This ensures that the state returned to `useQuery` in the parent component
+   * ALREADY contains the implicit filters (e.g. organization_user=1).
+   * This prevents the initial "empty" fetch.
+   */
+  const derivedState = useMemo(() => {
+    return calculateDerivedState(rawState, columns);
+  }, [rawState, columns]);
 
   return {
-    selected,
-    page: searchParams.has("page") ? Number(searchParams.get("page")) : DATAGRID_DEFAULT_PAGE,
-    limit: searchParams.has("limit") ? Number(searchParams.get("limit")) : DATAGRID_DEFAULT_LIMIT,
-    sort: searchParams.get("sort") || DATAGRID_DEFAULT_SORT,
-    order: (searchParams.get("order") as DataGridState["order"]) || DATAGRID_DEFAULT_ORDER,
-    filter: memoizedFilter,
+    ...derivedState,
     setPagination,
     setSorting,
     setFilter,
