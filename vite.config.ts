@@ -29,7 +29,7 @@ export default defineConfig({
     },
     rollupOptions: {
       logLevel: "debug",
-      external: ["react", "react-dom", "react/jsx-runtime"],
+      external: ["react", "react-dom", "react/jsx-runtime", "zustand"],
     },
   },
 });
