@@ -1,5 +1,3 @@
-// github.com/sovgut/datagrid-react-router
-// hook.ts
 import { useCallback, useMemo } from "react";
 import { type SetURLSearchParams } from "react-router-dom";
 import {
