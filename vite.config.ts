@@ -30,7 +30,15 @@ export default defineConfig({
       formats: ["es"],
     },
     rolldownOptions: {
-      external: ["react", "react-dom", "react/jsx-runtime"],
+      external: [
+        "react",
+        "react-dom",
+        "react/jsx-runtime",
+        "react-router",
+        "react-router-dom",
+        /^react-router\/.*/,
+        /^react-router-dom\/.*/,
+      ],
     },
   },
   resolve: {
