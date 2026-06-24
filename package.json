@@ -1,6 +1,6 @@
 {
   "name": "@sovgut/datagrid-react-router",
-  "version": "2.5.4",
+  "version": "2.5.5",
   "type": "module",
   "repository": {
     "type": "git",
@@ -29,7 +29,7 @@
     "react-router-dom": ">=7.0.0"
   },
   "dependencies": {
-    "@sovgut/datagrid": "4.9.2"
+    "@sovgut/datagrid": "4.9.3"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.1",
