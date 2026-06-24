@@ -34,6 +34,7 @@ export default defineConfig({
         "react",
         "react-dom",
         "react/jsx-runtime",
+        "react/compiler-runtime",
         "react-router",
         "react-router-dom",
         /^react-router\/.*/,
