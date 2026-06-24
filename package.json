@@ -1,6 +1,6 @@
 {
   "name": "@sovgut/datagrid-react-router",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "type": "module",
   "repository": {
     "type": "git",
@@ -22,7 +22,7 @@
     "deploy:npm": "npm publish --access public"
   },
   "dependencies": {
-    "@sovgut/datagrid": "4.6.0",
+    "@sovgut/datagrid": "4.7.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-router": "^7.12.0",
