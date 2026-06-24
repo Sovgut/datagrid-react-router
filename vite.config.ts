@@ -1,25 +1,27 @@
-/// <reference types="vite/client" />
-
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import dts from "vite-plugin-dts";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import babel from "@rolldown/plugin-babel";
+import react, { reactCompilerPreset } from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+import dts from "vite-plugin-dts";
 
 const __dirname = new URL(".", import.meta.url).pathname;
 
 export default defineConfig({
   plugins: [
-    react({
-      babel: {
-        plugins: [["babel-plugin-react-compiler"]],
-      },
+    react(),
+    babel({
+      presets: [reactCompilerPreset()],
     }),
     dts({
-      rollupTypes: true,
       tsconfigPath: "./tsconfig.app.json",
+      entryRoot: "src",
+      outDirs: "dist",
+      compilerOptions: {
+        rootDir: "src",
+      },
     }),
   ],
-
   build: {
     lib: {
       entry: resolve(__dirname, "src/main.ts"),
@@ -29,6 +31,11 @@ export default defineConfig({
     },
     rollupOptions: {
       external: ["react", "react-dom", "react/jsx-runtime"],
+    },
+  },
+  resolve: {
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
 });

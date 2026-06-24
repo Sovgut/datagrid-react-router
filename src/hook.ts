@@ -1,17 +1,16 @@
-import { useCallback, useMemo } from "react";
-import { type SetURLSearchParams } from "react-router-dom";
 import {
+  DATAGRID_DEFAULT_LIMIT,
+  DATAGRID_DEFAULT_ORDER,
+  DATAGRID_DEFAULT_PAGE,
+  DATAGRID_DEFAULT_SELECTED,
+  DATAGRID_DEFAULT_SORT,
   type DataGridColumn,
   type DataGridReducer,
   type DataGridRow,
   type DataGridState,
-  DATAGRID_DEFAULT_PAGE,
-  DATAGRID_DEFAULT_SELECTED,
-  DATAGRID_DEFAULT_LIMIT,
-  DATAGRID_DEFAULT_SORT,
-  DATAGRID_DEFAULT_ORDER,
-  DATAGRID_DEFAULT_FILTER,
 } from "@sovgut/datagrid";
+import { useCallback, useMemo } from "react";
+import type { SetURLSearchParams } from "react-router-dom";
 import { isNullish } from "utility-types";
 import type { ExpectedAny } from "./types.ts";
 
@@ -178,18 +177,20 @@ export function useSharedDataGrid<TData extends DataGridRow>(
   );
 
   const memoizedFilter = useMemo(() => {
-    return columns.reduce((acc, column) => {
-      const key = column.key as string;
+    return columns.reduce(
+      (acc, column) => {
+        const key = column.key as string;
 
-      if (searchParams.has(key)) {
-        return {
-          ...acc,
-          [key]: column.multiple ? (searchParams.getAll(key) as ExpectedAny) : (searchParams.get(key) as ExpectedAny),
-        };
-      }
+        if (searchParams.has(key)) {
+          acc[key] = column.multiple
+            ? (searchParams.getAll(key) as ExpectedAny)
+            : (searchParams.get(key) as ExpectedAny);
+        }
 
-      return acc;
-    }, DATAGRID_DEFAULT_FILTER);
+        return acc;
+      },
+      {} as Record<string, ExpectedAny>
+    );
   }, [columns, searchParams]);
 
   /**
