@@ -29,7 +29,7 @@ export default defineConfig({
       fileName: "datagrid-react-router",
       formats: ["es"],
     },
-    rollupOptions: {
+    rolldownOptions: {
       external: ["react", "react-dom", "react/jsx-runtime"],
     },
   },
