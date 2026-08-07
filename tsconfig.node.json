@@ -5,18 +5,32 @@
     "lib": ["ES2023"],
     "module": "esnext",
     "types": ["node"],
+    // The only project that keeps this on. Turning it off surfaces 13 errors
+    // inside build-tool typings we neither own nor ship: `convert-source-map`
+    // has no @types, `@rolldown/plugin-babel` references a `TransformOptions`
+    // that does not exist, and `babel-plugin-react-compiler` wants `zod`.
     "skipLibCheck": true,
 
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
+    "isolatedModules": true,
     "noEmit": true,
 
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": true,
+    "noImplicitOverride": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "strictBuiltinIteratorReturn": true,
     "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false
   },
-  "include": ["vite.config.ts"]
+  "include": ["vite.config.ts", "vitest.config.ts"]
 }

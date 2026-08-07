@@ -1,7 +1,7 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.5.1/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.7/schema.json",
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
-  "files": { "includes": ["**", "!!**/dist"] },
+  "files": { "includes": ["**", "!!**/dist", "!**/.zed"] },
   "formatter": {
     "enabled": true,
     "formatWithErrors": false,
@@ -17,18 +17,15 @@
   },
   "linter": {
     "enabled": true,
+    "domains": { "types": "all", "project": "all", "test": "all" },
     "rules": {
       "preset": "recommended",
-      "a11y": {
-        "useAnchorContent": "off",
-        "noSvgWithoutTitle": "off"
-      },
-      "complexity": {
-        "noStaticOnlyClass": "off"
-      },
-      "suspicious": {
-        "noArrayIndexKey": "off"
-      }
+      "a11y": "error",
+      "correctness": "error",
+      "security": "error",
+      "suspicious": "error",
+      "performance": { "noReExportAll": "error" },
+      "style": { "noNonNullAssertion": "error" }
     }
   },
   "javascript": {
@@ -53,5 +50,27 @@
   "assist": {
     "enabled": true,
     "actions": { "source": { "organizeImports": "on" } }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["*.config.ts", "vitest.setup.ts"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noNodejsModules": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["src/**/*.test.ts", "src/**/*.test.tsx"],
+      "linter": {
+        "rules": {
+          "security": {
+            "noSecrets": "off"
+          }
+        }
+      }
+    }
+  ]
 }

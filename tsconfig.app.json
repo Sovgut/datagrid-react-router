@@ -4,24 +4,38 @@
     "target": "es2023",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "esnext",
-    "types": ["vite/client"],
-    "skipLibCheck": true,
+    // Must stay an explicit list. Dropping the key entirely makes TypeScript
+    // pull in every installed @types package, and @types/node would leak
+    // `process` and `Buffer` into browser-only code.
+    "types": [],
+    "skipLibCheck": false,
 
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
+    "isolatedModules": true,
     "noEmit": true,
+    "declaration": true,
     "jsx": "react-jsx",
 
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": true,
+    "noImplicitOverride": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "erasableSyntaxOnly": false,
     "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true,
+    "strictBuiltinIteratorReturn": true,
+    "erasableSyntaxOnly": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
 
-    "paths": {
-      "@/*": ["./src/*"]
-    }
+    "isolatedDeclarations": true,
+    "stableTypeOrdering": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }
