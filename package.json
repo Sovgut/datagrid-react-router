@@ -1,6 +1,6 @@
 {
   "name": "@sovgut/datagrid-react-router",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Keeps @sovgut/datagrid table state in the URL: pagination, sorting, per-column filters and selection round-trip through React Router's search params, so every table view is a shareable link.",
   "type": "module",
   "repository": {
