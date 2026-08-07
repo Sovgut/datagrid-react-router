@@ -22,18 +22,6 @@ jobs:
       node-version: "25.x"
       package-version: ${{ needs.check-version.outputs.version }}
 
-  deploy-npm:
-    name: Package
-    needs:
-      - check-version
-      - build
-    permissions:
-      id-token: write
-      contents: read
-    uses: ./.github/workflows/deploy-npm.yml
-    with:
-      node-version: "25.x"
-      package-version: ${{ needs.check-version.outputs.version }}
 
   deploy-github:
     name: Package
