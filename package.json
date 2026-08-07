@@ -1,49 +1,84 @@
 {
   "name": "@sovgut/datagrid-react-router",
   "version": "2.5.5",
+  "description": "Keeps @sovgut/datagrid table state in the URL: pagination, sorting, per-column filters and selection round-trip through React Router's search params, so every table view is a shareable link.",
   "type": "module",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Sovgut/datagrid-react-router.git"
   },
+  "homepage": "https://github.com/Sovgut/datagrid-react-router#readme",
+  "bugs": {
+    "url": "https://github.com/Sovgut/datagrid-react-router/issues"
+  },
   "author": {
     "name": "Serhii Sovhut",
     "url": "https://github.com/Sovgut"
   },
-  "keywords": [],
+  "keywords": [
+    "react",
+    "react-router",
+    "datagrid",
+    "data-grid",
+    "table",
+    "url-state",
+    "search-params",
+    "query-string",
+    "pagination",
+    "sorting",
+    "filtering",
+    "typescript"
+  ],
   "license": "MIT",
   "files": ["dist"],
+  "sideEffects": false,
   "main": "./dist/datagrid-react-router.js",
   "types": "./dist/main.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/main.d.ts",
+      "import": "./dist/datagrid-react-router.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "vite build",
     "deploy:npm": "npm publish --access public",
-    "lint": "biome lint ./src",
-    "format": "biome format ./src --write",
-    "check": "biome check --write ./src"
+    "lint": "biome lint .",
+    "format": "biome format . --write",
+    "check": "biome check --write --error-on-warnings .",
+    "ci": "biome ci --error-on-warnings .",
+    "typecheck": "tsc -b",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest"
   },
   "peerDependencies": {
+    "@sovgut/datagrid": "^5.0.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "react-router": ">=7.0.0",
-    "react-router-dom": ">=7.0.0"
-  },
-  "dependencies": {
-    "@sovgut/datagrid": "4.9.3"
+    "react-router": ">=7.0.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.1",
+    "@biomejs/biome": "^2.5.7",
     "@rolldown/plugin-babel": "^0.2.3",
-    "@types/node": "^26.0.0",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.3",
+    "@sovgut/datagrid": "^5.0.0",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^26.1.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "@vitest/coverage-v8": "^4.1.10",
     "babel-plugin-react-compiler": "^1.0.0",
-    "globals": "^17.7.0",
+    "jsdom": "^30.0.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router": "^8.3.0",
     "typescript": "~6.0.3",
-    "utility-types": "^3.11.0",
-    "vite": "^8.1.0",
+    "vite": "^8.2.1",
     "vite-plugin-dts": "^5.0.3",
-    "zustand": "^5.0.14"
+    "vitest": "^4.1.10"
   }
 }

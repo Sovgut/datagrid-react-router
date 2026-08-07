@@ -5,7 +5,7 @@ import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import dts from "vite-plugin-dts";
 
-const __dirname = new URL(".", import.meta.url).pathname;
+const rootDir = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig({
   plugins: [
@@ -24,13 +24,19 @@ export default defineConfig({
   ],
   build: {
     lib: {
-      entry: resolve(__dirname, "src/main.ts"),
+      entry: resolve(rootDir, "src/main.ts"),
       name: "DataGridReactRouter",
       fileName: "datagrid-react-router",
       formats: ["es"],
     },
     rolldownOptions: {
+      // `@sovgut/datagrid` is external and a peer dependency. Bundling it would
+      // give the consumer a second copy of the core: its own contexts and its
+      // own `DATAGRID_DEFAULT_*` objects, which the core documents as single
+      // values shared by every grid on the page. The emitted declarations
+      // already import from it, so this only makes the runtime agree with them.
       external: [
+        "@sovgut/datagrid",
         "react",
         "react-dom",
         "react/jsx-runtime",
@@ -40,11 +46,6 @@ export default defineConfig({
         /^react-router\/.*/,
         /^react-router-dom\/.*/,
       ],
-    },
-  },
-  resolve: {
-    alias: {
-      "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
 });
