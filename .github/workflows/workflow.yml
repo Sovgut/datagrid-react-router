@@ -10,14 +10,14 @@ on:
 jobs:
   check-version:
     name: Package
-    uses: Sovgut/datagrid-react-router/.github/workflows/check-version.yml@main
+    uses: ./.github/workflows/check-version.yml
 
   build:
     name: Package
     needs:
       - check-version
     if: needs.check-version.outputs.is-changed == 'true'
-    uses: Sovgut/datagrid-react-router/.github/workflows/build.yml@main
+    uses: ./.github/workflows/build.yml
     with:
       node-version: "25.x"
       package-version: ${{ needs.check-version.outputs.version }}
@@ -30,7 +30,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    uses: Sovgut/datagrid-react-router/.github/workflows/deploy-npm.yml@main
+    uses: ./.github/workflows/deploy-npm.yml
     with:
       node-version: "25.x"
       package-version: ${{ needs.check-version.outputs.version }}
@@ -40,7 +40,7 @@ jobs:
     needs:
       - check-version
       - build
-    uses: Sovgut/datagrid-react-router/.github/workflows/deploy-github.yml@main
+    uses: ./.github/workflows/deploy-github.yml
     with:
       node-version: "25.x"
       package-version: ${{ needs.check-version.outputs.version }}

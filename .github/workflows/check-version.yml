@@ -1,3 +1,5 @@
+name: Check version
+
 on:
   workflow_call:
     outputs:
@@ -19,33 +21,36 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 2
 
       - name: Check version
         id: get-current-version
         run: |
-          CURR_VERSION=$(grep '"version":' package.json | sed -E 's/.*"([^"]+)".*/\1/')
+          CURR_VERSION=$(node -p "require('./package.json').version")
           echo "Current version in package.json: $CURR_VERSION"
           echo "version=$CURR_VERSION" >> $GITHUB_OUTPUT
 
       - name: Get previous version from package.json
         id: get-previous-version
         run: |
-          PREV_VERSION=$(git show HEAD~1:package.json | grep '"version":' | sed -E 's/.*"([^"]+)".*/\1/' || echo "none")
+          PREV_VERSION=$(git show HEAD~1:package.json 2>/dev/null | node -p "JSON.parse(require('node:fs').readFileSync(0,'utf8')).version" 2>/dev/null || echo "none")
           echo "Previous version in package.json: $PREV_VERSION"
           echo "prev-version=$PREV_VERSION" >> $GITHUB_OUTPUT
 
       - name: Check version increment
         id: check-version
+        env:
+          CURR_VERSION: ${{ steps.get-current-version.outputs.version }}
+          PREV_VERSION: ${{ steps.get-previous-version.outputs.prev-version }}
         run: |
-          echo "Previous version: ${{ steps.get-previous-version.outputs.prev-version }}"
-          echo "Current version: ${{ steps.get-current-version.outputs.version }}"
-          if [ "$PREV_VERSION" = "none" ] || [ "${{ steps.get-current-version.outputs.version }}" != "${{ steps.get-previous-version.outputs.prev-version }}" ]; then
-            echo "is-changed=true" >> $GITHUB_OUTPUT
+          echo "Previous version: $PREV_VERSION"
+          echo "Current version: $CURR_VERSION"
+          if [ "$PREV_VERSION" = "none" ] || [ "$CURR_VERSION" != "$PREV_VERSION" ]; then
+            echo "is-changed=true" >> "$GITHUB_OUTPUT"
           else
-            echo "is-changed=false" >> $GITHUB_OUTPUT
+            echo "is-changed=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Output package version state
