@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" role="img" aria-label="@sovgut/datagrid-react-router">
+  <title>@sovgut/datagrid-react-router</title>
+  <style>
+    svg { --ink: #1C1917; --accent: #E08A0B; }
+    @media (prefers-color-scheme: dark) { svg { --ink: #EDE9E4; --accent: #F2A63C; } }
+  </style>
+  <!--
+    The header row is inherited from the core's mark: the state a grid owns,
+    with the sorted column in accent. Below it, a link instead of table cells,
+    because that state lives in the address bar here.
+  -->
+  <rect x="2" y="3" width="6" height="4" rx="1.2" fill="var(--ink)" />
+  <rect x="9" y="3" width="6" height="4" rx="1.2" fill="var(--accent)" />
+  <rect x="16" y="3" width="6" height="4" rx="1.2" fill="var(--ink)" />
+  <g fill="none" stroke="var(--ink)" stroke-width="2" stroke-linecap="round">
+    <path d="M10 17.5 H14" />
+    <path d="M11 12.5 H9 a4 4 0 0 0 0 8 h2" />
+    <path d="M13 12.5 h2 a4 4 0 0 1 0 8 h-2" />
+  </g>
+</svg>

@@ -1,174 +1,216 @@
-# @sovgut/datagrid-react-router
+<p align="center">
+<img src="https://raw.githubusercontent.com/Sovgut/datagrid-react-router/main/assets/logo.svg" alt="" width="72" height="72" />
+</p>
+
+<h1 align="center">@sovgut/datagrid-react-router</h1>
 
 <p align="center">
-A simple adapter to synchronize <code>@sovgut/datagrid</code> state with URL search parameters using React Router.
+Puts <a href="https://github.com/Sovgut/datagrid">@sovgut/datagrid</a> table state in the URL. Pagination, sorting, per-column filters and selection round-trip through React Router's search params, so every view of a table is a link you can share, bookmark and reload.
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/npm/v/@sovgut/datagrid-react-router" alt="npm version" />
-  <img src="https://img.shields.io/npm/dm/@sovgut/datagrid-react-router" alt="npm downloads" />
-  <img src="https://img.shields.io/github/license/sovgut/datagrid-react-router" alt="license" />
-  <img src="https://img.shields.io/badge/TypeScript-Ready-blue" alt="TypeScript" />
+<img src="https://img.shields.io/npm/v/@sovgut/datagrid-react-router" alt="npm version" />
+<img src="https://img.shields.io/npm/dm/@sovgut/datagrid-react-router" alt="npm downloads" />
+<img src="https://img.shields.io/github/license/sovgut/datagrid-react-router" alt="license" />
+<img src="https://img.shields.io/badge/TypeScript-Ready-blue" alt="TypeScript" />
 </p>
 
-## Description
+## Contents
 
-This package provides a custom React hook, `useSharedDataGrid`, which serves as a bridge between the powerful `@sovgut/datagrid` library and `react-router-dom`. It allows you to store the state of your data grid (pagination, sorting, filters) directly in the URL, making it easily shareable, bookmarkable, and persistent across page reloads.
+- [What this is](#what-this-is)
+- [Installation](#installation)
+- [Quick start](#quick-start)
+- [What lands in the URL](#what-lands-in-the-url)
+- [Reading it back](#reading-it-back)
+- [`deriveState` runs here, on purpose](#derivestate-runs-here-on-purpose)
+- [The setters](#the-setters)
+- [Performance notes](#performance-notes)
+- [API reference](#api-reference)
 
-## Key Features
+## What this is
 
-- 🔗 **URL State Sync** - Automatically updates URL parameters when the grid state changes.
-- 🧩 **Seamless Integration** - Works as an external store for the `<DataGrid>` component.
-- 📤 **Shareable States** - Users can share links with pre-applied sorting, filters, and the current page.
-- 🛣️ **Built for React Router** - Uses the standard `useSearchParams` hook from `react-router-dom`.
-- 🪶 **Lightweight** - Just a single hook that does all the work.
+One hook. It implements `DataGridReducer` from `@sovgut/datagrid` on top of
+React Router's `useSearchParams`, so the grid reads and writes the query string
+instead of its own store.
 
-> [\!NOTE]
-> This package is an **adapter**. It is designed to be used **together with** `@sovgut/datagrid` and `react-router-dom`. It does not provide any UI components.
+**It is** the whole state layer for a table whose state should be in the address
+bar: back and forward work, a reload keeps the view, and a link carries the
+filters with it.
 
----
+**It is not** a grid, and it does not render anything. The core owns the table
+logic and your own components own the markup; this package only decides where
+the state lives.
 
 ## Installation
 
-First, ensure you have all the necessary peer dependencies installed:
-
 ```bash
-# npm
-npm install react react-router-dom @sovgut/datagrid
-
-# yarn
-yarn add react react-router-dom @sovgut/datagrid
-
-# pnpm
-pnpm add react react-router-dom @sovgut/datagrid
-```
-
-Then, install the adapter itself:
-
-```bash
-# npm
 npm install @sovgut/datagrid-react-router
-
-# yarn
-yarn add @sovgut/datagrid-react-router
-
-# pnpm
-pnpm add @sovgut/datagrid-react-router
 ```
 
----
+Three peer dependencies, all of which you already have if you are using the
+grid with React Router:
 
-## How It Works
+| Peer | Range |
+| :--- | :--- |
+| `@sovgut/datagrid` | `^5.0.0` |
+| `react` | `^19.0.0` |
+| `react-router` | `>=7.0.0` |
 
-The core idea is to use the `useSharedDataGrid` hook to create a `store`, which you then pass to the `store` prop of the `<DataGrid>` component.
+The core is a peer rather than a bundled dependency on purpose: the grid keeps
+module-level defaults that it documents as single values shared by every table
+on the page, and a second copy of the core would quietly break that.
 
-1.  The `useSharedDataGrid` hook takes `[searchParams, setSearchParams]` from the `useSearchParams` hook (`react-router-dom`).
-2.  It reads the initial state (pagination, sorting, filters) from the `URLSearchParams`.
-3.  It returns an object compatible with `DataGridReducer`, which includes:
-    - The current state, derived from the URL.
-    - Functions (`setPagination`, `setSorting`, `setFilter`) that update the `URLSearchParams` when called.
-4.  The `<DataGrid>` component uses this `store` as its single source of truth, and any state changes are automatically reflected in the URL.
-
----
-
-## Usage Example
-
-Here’s how to integrate `useSharedDataGrid` into your application. Note that the UI component (`MyTableUI`) remains the same as in the `@sovgut/datagrid` documentation. The only thing that changes is how the state is managed.
+## Quick start
 
 ```tsx
 import { DataGrid, type DataGridColumn, type DataGridRow } from "@sovgut/datagrid";
 import { useSharedDataGrid } from "@sovgut/datagrid-react-router";
-import { useSearchParams } from "react-router-dom";
-import type { FC } from "react";
+import { useSearchParams } from "react-router";
+import { useMemo } from "react";
 
-// 1. Define your data structure and columns (as usual)
-interface User extends DataGridRow {
+interface Order extends DataGridRow {
   id: number;
-  name: string;
-  email: string;
+  status: string;
 }
 
-const columns: DataGridColumn<User>[] = [
-  { key: "id", label: "ID" },
-  { key: "name", label: "Name", sortable: true },
-  { key: "email", label: "Email", sortable: true },
-];
+export function Orders() {
+  const columns = useMemo<DataGridColumn<Order>[]>(
+    () => [
+      { key: "id", label: "ID" },
+      { key: "status", label: "Status", sortable: true },
+      { key: "bank", label: "Bank", multiple: true },
+    ],
+    []
+  );
 
-const rows: User[] = [
-  { id: 1, name: "John Doe", email: "john@example.com" },
-  { id: 2, name: "Jane Smith", email: "jane@example.com" },
-  // ...
-];
-
-// Your UI component for the table (unchanged)
-const MyTableUI: FC = () => {
-  /* ... your table rendering logic ... */
-  /* It will receive state from the DataGrid context */
-};
-
-// 2. Put it all together in a page component
-export function UsersTablePage() {
-  // Get the URL tools from React Router
-  const searchParamsTuple = useSearchParams();
-
-  // Create the store that syncs with the URL
-  const store = useSharedDataGrid<User>(searchParamsTuple, columns);
+  // The whole integration: hand the hook the tuple and the columns, hand the
+  // result to `store`.
+  const store = useSharedDataGrid<Order>(useSearchParams(), columns);
+  const { data } = useOrders(store);
 
   return (
-    <DataGrid
-      columns={columns}
-      rows={rows}
-      size={rows.length}
-      // Pass our store to manage the state
-      store={store}
-    >
-      <MyTableUI />
+    <DataGrid store={store} columns={columns} rows={data.items} size={data.total}>
+      <OrdersTable />
     </DataGrid>
   );
 }
 ```
 
-Now, when a user changes the sort order or navigates to another page, the URL will update automatically, for example: `https://yourapp.com/users?page=2&sort=name&order=desc`.
+`store` is also the query: read `store.page`, `store.sort` and `store.filter`
+directly when you build the request. There is no second source of truth to keep
+in sync.
 
----
+## What lands in the URL
 
-## API Reference
+| Parameter | Written by | Shape |
+| :--- | :--- | :--- |
+| `page` | `setPagination`, `setState` | a positive integer |
+| `limit` | `setPagination`, `setState` | a positive integer |
+| `sort` | `setSorting`, `setState` | a column key; removed when unsorted |
+| `order` | `setSorting`, `setState` | `asc` or `desc`; removed when unsorted |
+| `selected` | `setSelected`, `setState` | repeated once per selected id |
+| one per column key | `setFilter`, `setState` | the filter value, repeated for an array |
 
-### `useSharedDataGrid<TData>`
+**A column key is a query parameter name.** That makes the five names above
+reserved: a column keyed `page` would collide with the grid's own state. It
+also makes a column key part of your public URLs, so renaming one breaks links
+that are already out there.
 
-This is the only hook exported by the package.
+## Reading it back
 
-#### Parameters
+A URL is typed by nobody, so everything is validated on the way in:
 
-| Parameter           | Type                                    | Description                                                                                                                      |
-| :------------------ | :-------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------- |
-| `searchParamsTuple` | `[URLSearchParams, SetURLSearchParams]` | **Required.** The tuple returned by the `useSearchParams` hook from `react-router-dom`.                                          |
-| `columns`           | `DataGridColumn<TData>[]`               | **Required.** The array of column definitions from `@sovgut/datagrid`. It is used to correctly parse filter values from the URL. |
+- **Filter values come back as strings.** A column marked `multiple` gets a
+  `string[]` from every repetition of its parameter; every other column gets a
+  single `string`. If your API wants numbers, convert at the call site.
+- **`page` and `limit` fall back** to the package defaults unless the parameter
+  is a positive integer. `?page=abc` is treated as no page at all rather than
+  being passed on as `NaN`.
+- **`order` must be exactly `asc` or `desc`.** Anything else is read as
+  unsorted, because those are the only two values this hook ever writes and the
+  grid's type promises nothing wider.
+- **Unknown parameters are left alone.** Only keys that match a column are
+  collected into `filter`, so the table can share a URL with the rest of your
+  app.
 
-#### Returns
+## `deriveState` runs here, on purpose
 
-The hook returns an object that conforms to the `DataGridReducer` interface from `@sovgut/datagrid`. This object is intended to be passed to the `store` prop of the `<DataGrid />` component.
+The hook applies every column's `filterConfig.deriveState` to the state it read
+from the URL, before returning it.
 
-The returned object contains:
+That is deliberate and it matters: a column that enforces an implicit filter
+(only your own records, only this organization) has to have applied it by the
+time you build the first request. Left to the grid, the first fetch would go
+out without it and its result would be thrown away one render later.
 
-- `page: number`
-- `limit: number`
-- `sort: string | null`
-- `order: 'asc' | 'desc' | null`
-- `filter: Record<string, any>`
-- `selected: string[]` (managed via `useState` and is **not** synced with the URL)
-- `setPagination: (page, limit) => void`
-- `setSorting: (sort, order) => void`
-- `setFilter: (filter) => void`
-- `setSelected: (selected) => void`
-- `setState: (state) => void`
+The state handed to `deriveState` is a copy: the state object, its `filter` and
+its `selected` are fresh, and values nested inside a filter entry are shared by
+reference. Assign and delete filter entries freely; replace nested values rather
+than editing them in place.
 
----
+## The setters
+
+All five write to the URL and nothing else. There is no local state behind them.
+
+- **`setFilter` replaces the filter wholesale.** Every parameter that is not one
+  of the five reserved names is cleared first, so a key the new filter does not
+  mention disappears. To clear one filter, pass the rest.
+- **A `null` or `undefined` filter value is skipped**, at the entry level and
+  inside an array, rather than being written as the string `"undefined"`.
+- **`setSorting` accepts `undefined`** for either argument and treats it like
+  `null`, removing the parameter.
+- **None of them replace the history entry.** Every change is a new entry, so
+  the browser's back button steps through the user's filtering. If you need
+  something else, that is a change to this package rather than an option.
+- **Calling `store.setFilter` directly does not reset the page.** The grid's
+  own `resetPageOnQueryChange` applies to the grid's setters; reach into the
+  store and you are talking to the URL, not to the grid.
+
+## Performance notes
+
+**Memoize `columns`.** The hook derives its state from them, so a fresh array on
+every render recomputes that state on every render and hands the grid a new
+store object each time. `useMemo` on the column array is the whole fix.
+
+The returned object is memoized here, which the core's documentation requires
+of an external store: an unstable one is the one known way to turn the grid's
+synchronization pass into an update loop.
+
+## API reference
+
+### `useSharedDataGrid(searchParams, columns)`
+
+| Parameter | Type | Description |
+| :--- | :--- | :--- |
+| `searchParams` | `[URLSearchParams, SetURLSearchParams]` | The tuple returned by `useSearchParams()`. Pass it straight through. |
+| `columns` | `DataGridColumn<TData>[]` | The same definitions the grid gets. Their keys name the query parameters and their `deriveState` runs here. |
+
+Returns a `DataGridReducer`: the state fields below plus `setPagination`,
+`setSorting`, `setFilter`, `setSelected` and `setState`.
+
+| Field | Type | Source |
+| :--- | :--- | :--- |
+| `page` | `number` | `?page`, else `1` |
+| `limit` | `number` | `?limit`, else `10` |
+| `sort` | `string \| null` | `?sort` |
+| `order` | `"asc" \| "desc" \| null` | `?order` |
+| `filter` | `Record<string, any>` | one parameter per column key |
+| `selected` | `string[]` | every `?selected` |
+
+Every field is synced with the URL, selection included.
+
+## Contributing
+
+Issues and pull requests are welcome. Before opening one:
+
+```bash
+npm ci
+npm run check      # Biome, rewrites files
+npm run typecheck
+npm test           # runs coverage, which is gated at 100%
+npm run build
+```
 
 ## License
 
 [MIT](./LICENSE)
-
-## Contributing
-
-Contributions are welcome\! Please feel free to submit a Pull Request to improve the package.
