@@ -54,7 +54,7 @@ grid with React Router:
 | :--- | :--- |
 | `@sovgut/datagrid` | `^5.0.0` |
 | `react` | `^19.0.0` |
-| `react-router` | `>=7.0.0` |
+| `react-router` | `^7.0.0 \|\| ^8.0.0` |
 
 The core is a peer rather than a bundled dependency on purpose: the grid keeps
 module-level defaults that it documents as single values shared by every table
