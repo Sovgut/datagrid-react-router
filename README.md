@@ -112,9 +112,12 @@ in sync.
 | one per column key | `setFilter`, `setState` | the filter value, repeated for an array |
 
 **A column key is a query parameter name.** That makes the five names above
-reserved: a column keyed `page` would collide with the grid's own state. It
-also makes a column key part of your public URLs, so renaming one breaks links
-that are already out there.
+reserved, and the hook throws on mount if a column claims one. It would
+otherwise fail silently and destructively: writing the filter would overwrite
+the grid's own parameter, and clearing the filter would refuse to remove it.
+
+It also makes a column key part of your public URLs, so renaming one breaks
+links that are already out there.
 
 ## Reading it back
 

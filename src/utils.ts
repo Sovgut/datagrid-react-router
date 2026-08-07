@@ -136,6 +136,25 @@ export function readPositiveInt(params: URLSearchParams, key: string, fallback: 
 }
 
 /**
+ * Fails when a column key would collide with a parameter the grid owns.
+ *
+ * The collision is silent and destructive otherwise: writing the filter would
+ * `set` the reserved parameter, so a column keyed `page` overwrites the
+ * pagination, while `deleteFilterKeys` refuses to clear it because the name is
+ * reserved. Naming a column this way is always a mistake, so it fails at mount
+ * with the key in the message rather than corrupting the URL later.
+ */
+export function assertNoReservedKeys<TData>(columns: DataGridColumn<TData>[]): void {
+  for (const column of columns) {
+    if (DATAGRID_RESERVED_KEYS.includes(column.key)) {
+      throw new RangeError(
+        `useSharedDataGrid: the column key "${column.key}" is reserved, because it is also the name of a query parameter the grid owns. Reserved keys: ${DATAGRID_RESERVED_KEYS.join(", ")}.`
+      );
+    }
+  }
+}
+
+/**
  * Reads a filter value for one column: an array when the column accepts
  * multiple values, a single string otherwise, and nothing at all when the
  * parameter is absent.

@@ -14,6 +14,7 @@ import { useCallback, useMemo } from "react";
 import type { SetURLSearchParams } from "react-router";
 
 import {
+  assertNoReservedKeys,
   calculateDerivedState,
   deleteFilterKeys,
   readColumnFilter,
@@ -130,7 +131,11 @@ export function useSharedDataGrid<TData extends DataGridRow>(
     [setSearchParams]
   );
 
-  const columnFilter = useMemo(() => readColumnFilter(searchParams, columns), [columns, searchParams]);
+  const columnFilter = useMemo(() => {
+    assertNoReservedKeys(columns);
+
+    return readColumnFilter(searchParams, columns);
+  }, [columns, searchParams]);
 
   /**
    * The state as the URL alone describes it, before any column has had a say.

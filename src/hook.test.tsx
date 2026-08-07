@@ -25,23 +25,28 @@ const columns: DataGridColumn<Row>[] = [
  * 2. whatever the updater returns is passed through the `URLSearchParams`
  *    constructor again rather than stored as-is;
  * 3. the params object is memoized on the query string, so its identity is
- *    stable across renders that do not change the URL.
+ *    stable across renders that do not change the URL;
+ * 4. the setter is `useCallback(..., [navigate, searchParams])`, so its
+ *    identity changes exactly when the query string does. Reproducing this
+ *    matters: a permanently stable setter would make the hook look more
+ *    memoization-friendly here than it is in an application.
  *
  * Testing against a real router would be testing React Router: this package
- * imports only a type from it and has no runtime link. One integration test at
- * the bottom guards against this harness drifting from reality.
+ * imports only a type from it and has no runtime link. `router.test.tsx`
+ * guards against this harness drifting from reality.
  */
 function useFakeSearchParams(initial: string): [URLSearchParams, SetURLSearchParams] {
   const [query, setQuery] = useState(initial);
   const params = useMemo(() => new URLSearchParams(query), [query]);
 
-  const setParams: SetURLSearchParams = useCallback((next) => {
-    setQuery((current) => {
-      const resolved = typeof next === "function" ? next(new URLSearchParams(current)) : next;
+  const setParams: SetURLSearchParams = useCallback(
+    (next) => {
+      const resolved = typeof next === "function" ? next(new URLSearchParams(params)) : next;
 
-      return new URLSearchParams(resolved as URLSearchParams).toString();
-    });
-  }, []);
+      setQuery(new URLSearchParams(resolved as URLSearchParams).toString());
+    },
+    [params]
+  );
 
   return [params, setParams];
 }
@@ -253,6 +258,14 @@ describe("identity of the returned store", () => {
     act(() => result.store.setPagination(5, 10));
 
     expect(result.store).not.toBe(before);
+  });
+});
+
+describe("reserved column keys", () => {
+  it.each(["page", "limit", "sort", "order", "selected"])("refuses a column keyed %s", (key) => {
+    // Silent and destructive otherwise: writing the filter would `set` the
+    // reserved parameter, and `deleteFilterKeys` would never clear it.
+    expect(() => renderHook("", [{ key, label: key }])).toThrow(RangeError);
   });
 });
 
