@@ -1,7 +1,7 @@
 import type { DataGridColumn, DataGridReducer, DataGridRow } from "@sovgut/datagrid";
 import { act, render } from "@testing-library/react";
 import type { ReactElement } from "react";
-import { MemoryRouter, useLocation, useSearchParams } from "react-router";
+import { MemoryRouter, useLocation, useNavigate, useSearchParams } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import { useSharedDataGrid } from "./hook.ts";
@@ -59,5 +59,63 @@ describe("against a real router", () => {
     act(() => seen.store.setSorting(null, null));
     expect(seen.search).not.toContain("sort=");
     expect(seen.search).not.toContain("order=");
+  });
+});
+
+/**
+ * `bank` only means anything while a `status` is chosen, so the column drops it
+ * as soon as the status is gone.
+ */
+const dependent: DataGridColumn<Row>[] = [
+  { key: "status", label: "Status" },
+  {
+    key: "bank",
+    label: "Bank",
+    filterConfig: {
+      deriveState: (context) => {
+        if (context.filter.status) {
+          return context;
+        }
+
+        const filter = { ...context.filter };
+
+        delete filter.bank;
+
+        return { ...context, filter };
+      },
+    },
+  },
+];
+
+describe("repairing a query string a column disagrees with", () => {
+  it("rewrites the address in place, leaving nothing to go back to", () => {
+    const seen = { pathname: "", search: "", back: null as unknown as () => void };
+
+    function Probe(): ReactElement {
+      const navigate = useNavigate();
+      const location = useLocation();
+
+      useSharedDataGrid<Row>(useSearchParams(), dependent);
+
+      seen.pathname = location.pathname;
+      seen.search = location.search;
+      seen.back = () => navigate(-1);
+
+      return <span />;
+    }
+
+    render(
+      <MemoryRouter initialEntries={["/elsewhere", "/?bank=ghost"]} initialIndex={1}>
+        <Probe />
+      </MemoryRouter>
+    );
+
+    expect(seen.search).not.toContain("bank");
+
+    act(() => seen.back());
+
+    // The repair replaced the entry it corrected. Had it pushed one, this step
+    // back would land on the uncorrected `/?bank=ghost` and repair it again.
+    expect(seen.pathname).toBe("/elsewhere");
   });
 });

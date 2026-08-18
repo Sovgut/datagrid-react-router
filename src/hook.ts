@@ -10,17 +10,21 @@ import {
   type DataGridRow,
   type DataGridState,
 } from "@sovgut/datagrid";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import type { SetURLSearchParams } from "react-router";
 
 import {
+  applyStateDiff,
   assertNoReservedKeys,
   calculateDerivedState,
   deleteFilterKeys,
+  isSameQuery,
+  isStateEqual,
   readColumnFilter,
   readPositiveInt,
   writeFilter,
   writeSelected,
+  writeState,
 } from "./utils.ts";
 
 /**
@@ -106,24 +110,7 @@ export function useSharedDataGrid<TData extends DataGridRow>(
   const setState: DataGridReducer["setState"] = useCallback(
     (state) => {
       setSearchParams((params) => {
-        params.set("page", String(state.page));
-        params.set("limit", String(state.limit));
-
-        if (state.sort === null || state.sort === undefined) {
-          params.delete("sort");
-        } else {
-          params.set("sort", state.sort);
-        }
-
-        if (state.order === null || state.order === undefined) {
-          params.delete("order");
-        } else {
-          params.set("order", state.order);
-        }
-
-        deleteFilterKeys(params);
-        writeFilter(params, state.filter);
-        writeSelected(params, state.selected);
+        writeState(params, state);
 
         return params;
       });
@@ -162,6 +149,45 @@ export function useSharedDataGrid<TData extends DataGridRow>(
    * consumer's first request would go out without them and be discarded.
    */
   const derivedState = useMemo(() => calculateDerivedState(rawState, columns), [rawState, columns]);
+
+  /**
+   * Puts the URL back in agreement with the state the columns derived.
+   *
+   * A `deriveState` that drops a filter - because a neighbouring filter no
+   * longer justifies it - leaves the parameter in the query string: the value is
+   * gone from the state and out of the request, while the link still reads as
+   * filtered. Writing the difference back is what makes the address bar describe
+   * the table again.
+   *
+   * The grid runs the same repair on its own store, but it never sees a
+   * disagreement here, because what this hook hands it is already derived. This
+   * is that repair, on the store the grid cannot reach.
+   *
+   * Only a real divergence is written, and only the part of the URL that carries
+   * it: a query string every column agrees with is left exactly as the reader
+   * wrote it. Comparing the result against the current query is what ends a
+   * divergence the URL cannot express - a `deriveState` that adds a filter for a
+   * key no column declares is derived again on every pass and never read back,
+   * so it must not navigate on every pass either.
+   */
+  useEffect(() => {
+    if (isStateEqual(rawState, derivedState)) {
+      return;
+    }
+
+    const next = new URLSearchParams(searchParams);
+
+    applyStateDiff(next, rawState, derivedState);
+
+    if (isSameQuery(next, searchParams)) {
+      return;
+    }
+
+    // Replaced rather than pushed: this is a correction of the address the user
+    // already has. Pushing it would put the uncorrected URL one step back, where
+    // going back would only trigger the correction again.
+    setSearchParams(next, { replace: true });
+  }, [rawState, derivedState, searchParams, setSearchParams]);
 
   /**
    * Memoized deliberately, and not left to the React Compiler.

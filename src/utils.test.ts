@@ -4,14 +4,20 @@ import type { DataGridColumn, DataGridRow, DataGridState } from "@sovgut/datagri
 import { describe, expect, it } from "vitest";
 
 import {
+  applyStateDiff,
   calculateDerivedState,
   cloneDataGridState,
   DATAGRID_RESERVED_KEYS,
   deleteFilterKeys,
+  isFilterEqual,
+  isSameQuery,
+  isSelectedEqual,
+  isStateEqual,
   readColumnFilter,
   readPositiveInt,
   writeFilter,
   writeSelected,
+  writeState,
 } from "./utils.ts";
 
 interface Row extends DataGridRow {
@@ -235,5 +241,160 @@ describe("readColumnFilter", () => {
 
     expect(result.status).toBe("a");
     expect(result.bank).toEqual(["x"]);
+  });
+});
+
+describe("writeState", () => {
+  it("writes the whole state and drops what the state does not mention", () => {
+    const params = new URLSearchParams("page=3&sort=name&order=asc&status=stale&selected=9");
+
+    writeState(params, state({ page: 2, limit: 25, filter: { bank: ["a", "b"] } }));
+
+    expect(params.toString()).toBe("page=2&limit=25&bank=a&bank=b");
+  });
+
+  it("produces the same query string when applied to its own output", () => {
+    const target = state({ page: 2, sort: "name", order: "desc", filter: { status: "new" }, selected: ["3"] });
+    const once = new URLSearchParams("status=old&page=7");
+
+    writeState(once, target);
+
+    const twice = new URLSearchParams(once);
+
+    writeState(twice, target);
+
+    // The URL is compared against the state by serializing the state, so a
+    // second pass that reordered the parameters would read as a change forever.
+    expect(twice.toString()).toBe(once.toString());
+  });
+});
+
+describe("isSelectedEqual", () => {
+  it("compares by value and treats a reordering as a change", () => {
+    expect(isSelectedEqual(["a", "b"], ["a", "b"])).toBe(true);
+    expect(isSelectedEqual(["a", "b"], ["b", "a"])).toBe(false);
+    expect(isSelectedEqual(["a"], ["a", "b"])).toBe(false);
+    expect(isSelectedEqual([], [])).toBe(true);
+  });
+
+  it("accepts the same array and a missing one", () => {
+    const selected = ["a", "b"];
+
+    expect(isSelectedEqual(selected, selected)).toBe(true);
+    expect(isSelectedEqual(selected, undefined as never)).toBe(false);
+  });
+});
+
+describe("isFilterEqual", () => {
+  it("compares by value, one level deep, regardless of key order", () => {
+    expect(isFilterEqual({ a: "1", b: "2" }, { b: "2", a: "1" })).toBe(true);
+    expect(isFilterEqual({ a: ["x", "y"] }, { a: ["x", "y"] })).toBe(true);
+    expect(isFilterEqual({ a: ["x"] }, { a: ["y"] })).toBe(false);
+    expect(isFilterEqual({ a: "1" }, { a: 1 })).toBe(false);
+    expect(isFilterEqual({ a: "1" }, { b: "1" })).toBe(false);
+    expect(isFilterEqual({ a: ["x"] }, { a: "x" })).toBe(false);
+    expect(isFilterEqual({ a: ["x"] }, { a: ["x", "y"] })).toBe(false);
+  });
+
+  it("accepts the same object and a missing one", () => {
+    const filter = { a: "1" };
+
+    expect(isFilterEqual(filter, filter)).toBe(true);
+    expect(isFilterEqual(filter, undefined as never)).toBe(false);
+  });
+
+  it("separates an invalidated entry from an absent one", () => {
+    // A deriveState invalidates a dependent filter by assigning `undefined`,
+    // and that change has to be visible.
+    expect(isFilterEqual({ a: undefined }, {})).toBe(false);
+  });
+});
+
+describe("isStateEqual", () => {
+  it("reports a state as equal to a copy of itself", () => {
+    const source = state({ page: 2, sort: "name", order: "asc", filter: { a: ["x"] }, selected: ["1"] });
+
+    expect(isStateEqual(source, cloneDataGridState(source))).toBe(true);
+  });
+
+  it.each([
+    ["page", { page: 2 }],
+    ["limit", { limit: 25 }],
+    ["sort", { sort: "name" }],
+    ["order", { order: "asc" as const }],
+    ["filter", { filter: { a: "1" } }],
+    ["selected", { selected: ["1"] }],
+  ])("reports a difference in %s", (_field, overrides) => {
+    expect(isStateEqual(state(), state(overrides))).toBe(false);
+  });
+});
+
+describe("applyStateDiff", () => {
+  it("touches nothing when the two states agree", () => {
+    const params = new URLSearchParams("bank=x&tab=details");
+
+    applyStateDiff(params, state({ filter: { bank: "x" } }), state({ filter: { bank: "x" } }));
+
+    expect(params.toString()).toBe("bank=x&tab=details");
+  });
+
+  it("removes a filter one state dropped and keeps everything else in place", () => {
+    const params = new URLSearchParams("tab=details&bank=ghost&page=4");
+
+    applyStateDiff(params, state({ page: 4, filter: { bank: "ghost" } }), state({ page: 4, filter: {} }));
+
+    expect(params.toString()).toBe("tab=details&page=4");
+  });
+
+  it("writes a filter one state added", () => {
+    const params = new URLSearchParams();
+
+    applyStateDiff(params, state(), state({ filter: { scope: "mine", bank: ["a", "b"] } }));
+
+    expect(params.toString()).toBe("scope=mine&bank=a&bank=b");
+  });
+
+  it("tolerates a state whose filter is missing on either side", () => {
+    const dropped = new URLSearchParams("bank=x");
+
+    applyStateDiff(dropped, state({ filter: { bank: "x" } }), state({ filter: undefined as never }));
+    expect(dropped.toString()).toBe("");
+
+    const added = new URLSearchParams();
+
+    applyStateDiff(added, state({ filter: undefined as never }), state({ filter: { bank: "x" } }));
+    expect(added.toString()).toBe("bank=x");
+  });
+
+  it("writes the pagination, the sorting and the selection that moved", () => {
+    const params = new URLSearchParams();
+
+    applyStateDiff(params, state(), state({ page: 2, limit: 25, sort: "name", order: "asc", selected: ["3"] }));
+
+    expect(params.toString()).toBe("page=2&limit=25&sort=name&order=asc&selected=3");
+  });
+
+  it("clears the sorting and the selection that went away", () => {
+    const params = new URLSearchParams("sort=name&order=asc&selected=3");
+    const sorted = state({ sort: "name", order: "asc", selected: ["3"] });
+
+    applyStateDiff(params, sorted, state());
+
+    expect(params.toString()).toBe("");
+  });
+});
+
+describe("isSameQuery", () => {
+  it("reads the same parameters in a different order as the same query", () => {
+    expect(isSameQuery(new URLSearchParams("a=1&b=2"), new URLSearchParams("b=2&a=1"))).toBe(true);
+  });
+
+  it("keeps the order of the values under one key significant", () => {
+    expect(isSameQuery(new URLSearchParams("a=1&a=2"), new URLSearchParams("a=2&a=1"))).toBe(false);
+  });
+
+  it("separates queries that differ in content", () => {
+    expect(isSameQuery(new URLSearchParams("a=1"), new URLSearchParams("a=1&b=2"))).toBe(false);
+    expect(isSameQuery(new URLSearchParams("a=1"), new URLSearchParams("a=2"))).toBe(false);
   });
 });

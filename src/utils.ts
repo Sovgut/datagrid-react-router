@@ -19,12 +19,6 @@ export const DATAGRID_RESERVED_KEYS: readonly string[] = ["page", "limit", "sort
  * state object, its `filter` and its `selected` are fresh, and values nested
  * inside a filter entry are shared by reference. That is the depth a
  * `deriveState` reaches when it assigns or deletes a filter entry.
- *
- * The previous implementation was a `JSON.parse(JSON.stringify(...))` round
- * trip, which drops `undefined`, turns a `Date` into a string and throws on a
- * cycle. Everything this hook clones comes out of the URL and is therefore a
- * string or an array of strings, so the two agree on real input; this one just
- * has no failure mode for the input a `deriveState` might introduce.
  */
 export function cloneDataGridState(state: DataGridState): DataGridState {
   return {
@@ -122,8 +116,9 @@ export function writeSelected(params: URLSearchParams, selected: DataGridState["
  * Reads a positive integer out of the search params, falling back when the
  * parameter is absent or is not one.
  *
- * `?page=abc` used to reach the data source as `NaN`. A URL is typed by nobody,
- * so a value that cannot be a page number is treated as no value at all.
+ * A URL is typed by nobody, so a value that cannot be a page number - `?page=abc`,
+ * `?limit=0` - is treated as no value at all rather than reaching the data
+ * source as `NaN`.
  */
 export function readPositiveInt(params: URLSearchParams, key: string, fallback: number): number {
   if (!params.has(key)) {
@@ -172,4 +167,191 @@ export function readColumnFilter<TData>(
   }
 
   return filter;
+}
+
+/**
+ * Writes a whole grid state into the search params, leaving nothing of the
+ * previous one behind: `page` and `limit` always land, `sort` and `order`
+ * disappear when the state is unsorted, and the filter and the selection are
+ * replaced rather than merged.
+ *
+ * Applying it twice yields the same query string, which is what lets the URL
+ * be compared against the state by serializing the state and comparing strings.
+ */
+export function writeState(params: URLSearchParams, state: DataGridState): void {
+  params.set("page", String(state.page));
+  params.set("limit", String(state.limit));
+
+  if (state.sort === null || state.sort === undefined) {
+    params.delete("sort");
+  } else {
+    params.set("sort", state.sort);
+  }
+
+  if (state.order === null || state.order === undefined) {
+    params.delete("order");
+  } else {
+    params.set("order", state.order);
+  }
+
+  deleteFilterKeys(params);
+  writeFilter(params, state.filter);
+  writeSelected(params, state.selected);
+}
+
+/**
+ * Compares two selection arrays by value, order significant: the order is the
+ * consumer's to define, so a reordering counts as a change.
+ */
+export function isSelectedEqual(a: DataGridState["selected"], b: DataGridState["selected"]): boolean {
+  if (a === b) {
+    return true;
+  }
+
+  if (!a || !b || a.length !== b.length) {
+    return false;
+  }
+
+  for (let index = 0; index < a.length; index++) {
+    if (!Object.is(a[index], b[index])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Compares two filter objects by value, one level deep, with array values
+ * compared element by element.
+ *
+ * `{ a: undefined }` and `{}` are different: a `deriveState` that invalidates a
+ * dependent filter usually does so by assigning `undefined`, and that change
+ * has to be visible. A value that is neither a primitive nor an array of
+ * primitives is compared by reference, which is as far as a value that has to
+ * survive a round trip through a query string can go.
+ */
+export function isFilterEqual(a: DataGridState["filter"], b: DataGridState["filter"]): boolean {
+  if (a === b) {
+    return true;
+  }
+
+  if (!a || !b) {
+    return false;
+  }
+
+  const keys = Object.keys(a);
+
+  if (keys.length !== Object.keys(b).length) {
+    return false;
+  }
+
+  for (const key of keys) {
+    if (!Object.hasOwn(b, key)) {
+      return false;
+    }
+
+    const left = a[key];
+    const right = b[key];
+
+    if (Array.isArray(left) || Array.isArray(right)) {
+      if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) {
+        return false;
+      }
+
+      for (let index = 0; index < left.length; index++) {
+        if (!Object.is(left[index], right[index])) {
+          return false;
+        }
+      }
+
+      continue;
+    }
+
+    if (!Object.is(left, right)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Writes into the search params only what actually differs between two states.
+ *
+ * The repair that follows a column's `deriveState` is not the consumer asking
+ * for a new state, so it touches as little of the URL as it can: a parameter
+ * nobody moved keeps its value and its position, an absent `page` stays absent
+ * rather than being filled in with the default, and a parameter that belongs to
+ * the rest of the application survives the visit.
+ */
+export function applyStateDiff(params: URLSearchParams, from: DataGridState, to: DataGridState): void {
+  if (from.page !== to.page) {
+    params.set("page", String(to.page));
+  }
+
+  if (from.limit !== to.limit) {
+    params.set("limit", String(to.limit));
+  }
+
+  if (from.sort !== to.sort) {
+    if (to.sort === null || to.sort === undefined) {
+      params.delete("sort");
+    } else {
+      params.set("sort", to.sort);
+    }
+  }
+
+  if (from.order !== to.order) {
+    if (to.order === null || to.order === undefined) {
+      params.delete("order");
+    } else {
+      params.set("order", to.order);
+    }
+  }
+
+  if (!isFilterEqual(from.filter, to.filter)) {
+    for (const key of new Set([...Object.keys(from.filter ?? {}), ...Object.keys(to.filter ?? {})])) {
+      params.delete(key);
+    }
+
+    writeFilter(params, to.filter);
+  }
+
+  if (!isSelectedEqual(from.selected, to.selected)) {
+    writeSelected(params, to.selected);
+  }
+}
+
+/**
+ * Compares two query strings by content rather than by spelling: the same
+ * parameters in a different order describe the same state, and rewriting the
+ * URL to reorder them would be a navigation the reader never asked for.
+ *
+ * Values under one key keep their order, because a filter with several values
+ * is an ordered list.
+ */
+export function isSameQuery(a: URLSearchParams, b: URLSearchParams): boolean {
+  return canonicalQuery(a) === canonicalQuery(b);
+}
+
+function canonicalQuery(params: URLSearchParams): string {
+  const entries = Array.from(params.entries()).sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
+
+  return new URLSearchParams(entries).toString();
+}
+
+/**
+ * Compares two grid states by value, matching the comparison the grid itself
+ * makes when it decides whether a column's `deriveState` moved the state.
+ */
+export function isStateEqual(a: DataGridState, b: DataGridState): boolean {
+  return (
+    a.page === b.page &&
+    a.limit === b.limit &&
+    a.sort === b.sort &&
+    a.order === b.order &&
+    isSelectedEqual(a.selected, b.selected) &&
+    isFilterEqual(a.filter, b.filter)
+  );
 }

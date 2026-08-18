@@ -1,7 +1,7 @@
 import type { DataGridColumn, DataGridReducer, DataGridRow } from "@sovgut/datagrid";
 import { act, render } from "@testing-library/react";
 import { type ReactElement, useCallback, useMemo, useState } from "react";
-import type { SetURLSearchParams } from "react-router";
+import type { NavigateOptions, SetURLSearchParams } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import { useSharedDataGrid } from "./hook.ts";
@@ -35,17 +35,21 @@ const columns: DataGridColumn<Row>[] = [
  * imports only a type from it and has no runtime link. `router.test.tsx`
  * guards against this harness drifting from reality.
  */
-function useFakeSearchParams(initial: string): [URLSearchParams, SetURLSearchParams] {
+function useFakeSearchParams(
+  initial: string,
+  onNavigate: (options: NavigateOptions | undefined) => void
+): [URLSearchParams, SetURLSearchParams] {
   const [query, setQuery] = useState(initial);
   const params = useMemo(() => new URLSearchParams(query), [query]);
 
   const setParams: SetURLSearchParams = useCallback(
-    (next) => {
+    (next, options) => {
       const resolved = typeof next === "function" ? next(new URLSearchParams(params)) : next;
 
+      onNavigate(options);
       setQuery(new URLSearchParams(resolved as URLSearchParams).toString());
     },
-    [params]
+    [params, onNavigate]
   );
 
   return [params, setParams];
@@ -55,13 +59,17 @@ interface HarnessResult {
   store: DataGridReducer;
   query: string;
   identities: DataGridReducer[];
+  navigations: (NavigateOptions | undefined)[];
 }
 
 function renderHook(initialQuery = "", cols: DataGridColumn<Row>[] = columns) {
-  const result: HarnessResult = { store: null as never, query: "", identities: [] };
+  const result: HarnessResult = { store: null as never, query: "", identities: [], navigations: [] };
+  const record = (options: NavigateOptions | undefined): void => {
+    result.navigations.push(options);
+  };
 
   function Probe(): ReactElement {
-    const [params, setParams] = useFakeSearchParams(initialQuery);
+    const [params, setParams] = useFakeSearchParams(initialQuery, record);
     const store = useSharedDataGrid<Row>([params, setParams], cols);
 
     result.store = store;
@@ -158,8 +166,8 @@ describe("writing state into the URL", () => {
     expect(result.query).not.toContain("order");
 
     act(() => result.store.setSorting("name", "asc"));
-    // Regression guard: the reducer accepts `undefined` and the plugin used to
-    // declare its parameters more narrowly, which stopped it compiling at all.
+    // The reducer's own signature accepts `undefined`, so this one has to as
+    // well or the package does not compile against it.
     act(() => result.store.setSorting(undefined, undefined));
     expect(result.query).not.toContain("sort");
     expect(result.query).not.toContain("order");
@@ -178,7 +186,7 @@ describe("writing state into the URL", () => {
   it("setFilter skips nullish values instead of throwing on them", () => {
     const { result } = renderHook();
 
-    // Regression guard: this used to call `.toString()` on the value and throw.
+    // A nullish value means "no filter"; calling `.toString()` on it throws.
     expect(() => act(() => result.store.setFilter({ status: undefined, bank: null, extra: "x" }))).not.toThrow();
     expect(result.query).toBe("extra=x");
   });
@@ -279,5 +287,154 @@ describe("the SetURLSearchParams contract", () => {
     // The updater got a copy, so the object the component rendered with is
     // untouched even though the setter mutates its argument in place.
     expect(rendered).toBe("page=2");
+  });
+});
+
+/**
+ * `bank` only means anything while a `status` is chosen, so the column drops it
+ * as soon as the status is gone. This is the shape of `deriveState` that
+ * disagrees with the URL: the filter leaves the state without leaving the query
+ * string.
+ */
+const dependent: DataGridColumn<Row>[] = [
+  { key: "status", label: "Status" },
+  {
+    key: "bank",
+    label: "Bank",
+    filterConfig: {
+      deriveState: (context) => {
+        if (context.filter.status) {
+          return context;
+        }
+
+        const filter = { ...context.filter };
+
+        delete filter.bank;
+
+        return { ...context, filter };
+      },
+    },
+  },
+];
+
+describe("keeping the URL in agreement with the derived state", () => {
+  it("removes a parameter a column dropped", () => {
+    const { result } = renderHook("bank=ghost", dependent);
+
+    expect(result.store.filter).toEqual({});
+    // The repair writes the divergence and nothing else, so a `page` the reader
+    // never wrote is not filled in on the way past.
+    expect(result.query).toBe("");
+  });
+
+  it("leaves the parameters of the rest of the application alone", () => {
+    const { result } = renderHook("tab=details&bank=ghost", dependent);
+
+    expect(result.query).toBe("tab=details");
+  });
+
+  it("adds a parameter a column enforces", () => {
+    const enforced: DataGridColumn<Row>[] = [
+      {
+        key: "scope",
+        label: "Scope",
+        filterConfig: {
+          deriveState: (context) => ({ ...context, filter: { ...context.filter, scope: "mine" } }),
+        },
+      },
+    ];
+
+    const { result } = renderHook("", enforced);
+
+    expect(result.query).toContain("scope=mine");
+  });
+
+  it("corrects the URL after a write the column overrides", () => {
+    const { result } = renderHook("status=active&bank=x", dependent);
+
+    act(() => result.store.setFilter({ bank: "x" }));
+
+    expect(result.store.filter).toEqual({});
+    expect(result.query).not.toContain("bank");
+  });
+
+  it("replaces the entry rather than pushing a second one", () => {
+    const { result } = renderHook("bank=ghost", dependent);
+
+    expect(result.navigations).toEqual([{ replace: true }]);
+  });
+
+  it("leaves a URL no column disagrees with exactly as it is", () => {
+    const { result } = renderHook("bank=x&status=active", dependent);
+
+    expect(result.query).toBe("bank=x&status=active");
+    expect(result.navigations).toEqual([]);
+  });
+
+  it("does not normalize a URL that has no deriveState behind it", () => {
+    const { result } = renderHook("page=2");
+
+    expect(result.query).toBe("page=2");
+    expect(result.navigations).toEqual([]);
+  });
+
+  it("writes once for a divergence the URL cannot express", () => {
+    // `ghost` belongs to no column, so it is never read back and the state
+    // stays different from the URL forever. Comparing query strings is what
+    // stops that from being an endless sequence of navigations.
+    const ghostly: DataGridColumn<Row>[] = [
+      {
+        key: "status",
+        label: "Status",
+        filterConfig: {
+          deriveState: (context) => ({ ...context, filter: { ...context.filter, ghost: "1" } }),
+        },
+      },
+    ];
+
+    const { result } = renderHook("", ghostly);
+
+    expect(result.store.filter).toEqual({ ghost: "1" });
+    expect(result.query).toContain("ghost=1");
+    expect(result.navigations).toHaveLength(1);
+  });
+});
+
+describe("columns that are rebuilt on every render", () => {
+  it("repairs the URL once instead of navigating on every render", () => {
+    // A fresh column array every render is documented as a performance mistake.
+    // It must not also be a correctness one: the repair compares by value, so a
+    // new array describing the same columns settles after a single write.
+    const seen = { query: "", navigations: [] as (NavigateOptions | undefined)[], renders: 0 };
+
+    function Probe(): ReactElement {
+      const [params, setParams] = useFakeSearchParams("", (options) => {
+        seen.navigations.push(options);
+      });
+
+      useSharedDataGrid<Row>(
+        [params, setParams],
+        [
+          {
+            key: "scope",
+            label: "Scope",
+            filterConfig: {
+              deriveState: (context) => ({ ...context, filter: { ...context.filter, scope: "mine" } }),
+            },
+          },
+        ]
+      );
+
+      seen.query = params.toString();
+      seen.renders += 1;
+
+      return <span />;
+    }
+
+    render(<Probe />);
+
+    expect(seen.query).toBe("scope=mine");
+    expect(seen.navigations).toEqual([{ replace: true }]);
+    expect(seen.renders).toBe(2);
   });
 });

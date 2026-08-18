@@ -109,7 +109,7 @@ in sync.
 | `sort` | `setSorting`, `setState` | a column key; removed when unsorted |
 | `order` | `setSorting`, `setState` | `asc` or `desc`; removed when unsorted |
 | `selected` | `setSelected`, `setState` | repeated once per selected id |
-| one per column key | `setFilter`, `setState` | the filter value, repeated for an array |
+| one per column key | `setFilter`, `setState`, `deriveState` | the filter value, repeated for an array |
 
 **A column key is a query parameter name.** That makes the five names above
 reserved, and the hook throws on mount if a column claims one. It would
@@ -151,6 +151,22 @@ its `selected` are fresh, and values nested inside a filter entry are shared by
 reference. Assign and delete filter entries freely; replace nested values rather
 than editing them in place.
 
+**Whatever `deriveState` changes is written back to the URL.** A column that
+drops a filter - because the neighbouring filter that justified it is gone -
+would otherwise leave its parameter behind: the value is out of the state and
+out of the request, while the link still reads as filtered.
+
+**`deriveState` has to be idempotent.** Deriving an already derived state must
+return that same state. It runs on every read, and both the grid and this hook
+write the result back, so a rule that flips a value on and off between passes
+never settles.
+
+That repair writes the difference and nothing else. A parameter no column moved
+keeps its value and its position, a `page` you never wrote is not filled in with
+the default, and the parameters the rest of your app keeps in the same URL
+survive it. It replaces the current history entry instead of adding one, because
+it corrects the address the reader already has.
+
 ## The setters
 
 All five write to the URL and nothing else. There is no local state behind them.
@@ -164,7 +180,8 @@ All five write to the URL and nothing else. There is no local state behind them.
   `null`, removing the parameter.
 - **None of them replace the history entry.** Every change is a new entry, so
   the browser's back button steps through the user's filtering. If you need
-  something else, that is a change to this package rather than an option.
+  something else, that is a change to this package rather than an option. The
+  `deriveState` repair above is the one write that corrects an entry in place.
 - **Calling `store.setFilter` directly does not reset the page.** The grid's
   own `resetPageOnQueryChange` applies to the grid's setters; reach into the
   store and you are talking to the URL, not to the grid.
